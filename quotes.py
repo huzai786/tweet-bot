@@ -1,5 +1,8 @@
+import os
+
 import requests
 from bs4 import BeautifulSoup
+
 
 def dump_quotes_to_html():
     quotes_list = []
@@ -38,6 +41,5 @@ def dump_quotes_to_file():
             if len(tweet_msg) < 90:
                 f.write(tweet_msg)
                 f.write('\n')
-
-
+    os.unlink('files/quotes.txt')
 dump_quotes_to_file()
