@@ -88,8 +88,8 @@ def main():
         if event == '-add_tweet-':
             tweet = value['tweet_msg']
             if tweet:
-                if len(tweet) > 155:
-                    sg.popup_error(f'tweet msg len is greater than 155, tweet length = {len(tweet)}')
+                if len(tweet) > 135:
+                    sg.popup_error(f'tweet msg len is greater than 135, tweet length = {len(tweet)}')
                     continue
                 add_to_tweet_file(tweet)
                 window['tweet_msg'].update('')
@@ -118,13 +118,6 @@ def main():
             window['-acc_table-'].update(updated_acc_table)
 
         if event == '-run-':
-            accounts = get_accs_from_db()
-            for account in accounts:
-                username = account.get('acc_username')
-                password = account.get('acc_pass')
-                acc_scheduling = TweetSchedule(username, password)
-                window.perform_long_operation(acc_scheduling.start_scheduling(), end_key=f'{username}_thread')  # incomplete
-
             btn_text = window['-run-'].get_text()
             if btn_text == 'Stop Scheduling':
                 msg = sg.popup_ok_cancel('Are you sure you want to cancel all scheduling?')
@@ -136,6 +129,12 @@ def main():
             if btn_text == 'Start Scheduling':
                 msg = sg.popup_ok_cancel('Are you sure you want to start scheduling?')
                 if msg == 'OK':
+                    accounts = get_accs_from_db()
+                    for account in accounts:
+                        username = account.get('acc_username')
+                        password = account.get('acc_pass')
+                        acc_scheduling = TweetSchedule(username, password)
+                        window.perform_long_operation(acc_scheduling.start_scheduling(), end_key=f'{username}_thread')
                     window['-run-'].update('Stop Scheduling')
                     window['-run-'].update(button_color=('black', 'red'))
                     bot_running = True

@@ -1,6 +1,7 @@
-from backend.tweet import TweetSchedule, _extract_time
+from backend.tweet import TweetSchedule
+from bs4 import BeautifulSoup
 
 
 tweet = TweetSchedule(username='@SUyghurmuslims', password='!qwe03192057092zxc#')
-tweet_time = tweet.last_tweet_time()
-x = _extract_time(tweet_time)
+tweet_time = tweet.start_scheduling()
+print(tweet_time)
