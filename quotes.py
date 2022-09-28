@@ -32,14 +32,30 @@ def dump_quotes_to_file():
     quotes = []
     for q in quotes_lis:
         quote_text = q.find('a', class_='title').text
-        quote_author = q.find('div', class_="author").find('a').text
-
-        quotes.append((quote_text.strip(), quote_author.strip()))
+        quotes.append(quote_text.strip())
     with open('files/quotes.txt', 'w', encoding='utf-8') as f:
-        for quote in quotes:
-            tweet_msg = f'"{quote[0]}" -{quote[1]}'
+        for q in quotes:
+            tweet_msg = f'{q}'
             if len(tweet_msg) < 90:
                 f.write(tweet_msg)
                 f.write('\n')
-    os.unlink('files/quotes.txt')
-dump_quotes_to_file()
+
+
+def use_api_for_quotes():
+    ql = []
+    while True:
+        res = requests.get('https://zenquotes.io/api/random')
+        print(res.json())
+        if res.json()[0]['q'] != 'Too many requests. Obtain an auth key for unlimited access.':
+            quote = res.json()[0]['q']
+            ql.append(quote)
+        else:
+            break
+
+    with open('files/quotes.txt', 'a') as f:
+        for q in ql:
+            f.write(q)
+            f.write('\n')
+
+
+use_api_for_quotes()
