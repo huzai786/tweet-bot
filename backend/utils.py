@@ -56,7 +56,7 @@ def generate_tweet(settings: dict) -> str:
 def _set_options() -> ChromeOptions:
     ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36"
     options = ChromeOptions()
-    # options.add_argument('--headless')
+    options.add_argument('--headless')
     options.add_argument(f'--user-agent={ua}')
     return options
 

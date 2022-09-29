@@ -1,3 +1,4 @@
+import datetime
 import os
 
 import PySimpleGUI as sg
@@ -19,6 +20,10 @@ from frontend.utils import (
     get_accs_from_db
 )
 from backend.tweet import TweetSchedule
+from backend.status import update_status
+
+# TODO: HANDLE THREADING
+# TODO: MOVE TO BOTTOM AND FIND THE LAST TWEET
 
 # Set the theme
 sg.theme('DarkAmber')
@@ -54,6 +59,7 @@ def main_window():
             sg.Button('Edit Configuration', key='-edit_config-'),
             sg.Button('Add Accounts', key='-add_acc-'),
             sg.Button('Manage Accounts', key='-manage_acc-'),
+            sg.Button('Update Status', key='-update_status-'),
             sg.Push(), sg.Button('Start Scheduling', key='-run-', size=(20, 1))
         ],
     ]
@@ -65,13 +71,20 @@ def main_window():
 
 def main():
     window = main_window()
-    bot_running = False
     while True:
         event, value = window.read()
 
         if event == sg.WINDOW_CLOSED or event == 'Cancel':
             break
 
+        if event == '-update_status-':
+            window.perform_long_operation(update_status, '-status-')
+
+        if event == 'status-':
+            window.close()
+            window = main_window()
+
+        print(event, value)
         # Setting configuration
         if event == "-edit_config-":
             setting_window(get_current_settings())

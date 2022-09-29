@@ -20,8 +20,8 @@ def get_accounts_table():
     return accounts_table
 
 
-def get_manage_window():
-    accs = get_accs_from_db()  # Lists of all the accounts in db
+def get_manage_window(accounts):
+
     manage_acc_layout = [
         [
             sg.Text(f'{i.get("acc_gmail")}'),
@@ -30,7 +30,7 @@ def get_manage_window():
             sg.Button('Edit', key=f'{i.get("acc_username") + "_edit"}'),
             sg.Button('Delete', key=f'{i.get("acc_username") + "_delete"}')
         ]
-        for i in accs  # List Comprehension
+        for i in accounts  # List Comprehension
     ]
     w = sg.Window('Manage Accounts', manage_acc_layout)
 
@@ -39,12 +39,16 @@ def get_manage_window():
 
 def manage_account_window():
     """Handles the Edit and Delete Button"""
+    accs = get_accs_from_db()
 
-    manage_acc_window = get_manage_window()
+    manage_acc_window = get_manage_window(accs)
+
+    if not accs:
+        sg.popup_error('No Account Found To Manage!')
+        manage_acc_window.close()
 
     while True:
         manage_acc_event, eod_acc_value = manage_acc_window.read()
-        print(manage_acc_event, eod_acc_value)
         if manage_acc_event == sg.WINDOW_CLOSED or manage_acc_event == 'Cancel':
             break
 
@@ -53,13 +57,18 @@ def manage_account_window():
         if manage_acc_event.endswith('_edit'):
             edit_account_window(key)
             manage_acc_window.close()
-            manage_acc_window = get_manage_window()
+            accs = get_accs_from_db()
+            manage_acc_window = get_manage_window(accs)
 
         if manage_acc_event.endswith('_delete'):
             if sg.popup_yes_no(f'Are you sure you want to delete {key} account!', keep_on_top=True, modal=True) == 'Yes':
                 del_acc_in_db(key)
                 manage_acc_window.close()
-                manage_acc_window = get_manage_window()
+                accs = get_accs_from_db()
+                if accs:
+                    manage_acc_window = get_manage_window(accs)
+                else:
+                    manage_acc_window.close()
 
     manage_acc_window.close()
 

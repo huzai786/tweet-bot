@@ -42,7 +42,12 @@ def setting_window(settings_dict):
         if sett_event == sg.WINDOW_CLOSED or sett_event == 'Cancel':
             break
         if sett_event == '-save-':
-            change_current_settings(sett_value)
-            break
+            try:
+                int(sett_value.get('-schedule_till-'))
+                change_current_settings(sett_value)
+                break
+            except ValueError:
+                sg.popup_error('pass integer value to field "schedule till"')
+                continue
 
     sett_window.close()

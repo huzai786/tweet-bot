@@ -1,6 +1,8 @@
+import os
 import time
 from datetime import datetime, timedelta
 from collections import namedtuple
+from typing import Union
 
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
@@ -14,46 +16,67 @@ from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
 
 from frontend.utils import get_current_settings
-from backend.helpers import _side_panel_setup
+from backend.helpers import _side_panel_setup, check_exists
 from backend.utils import generate_tweet, _set_options, _extract_time, JS_ADD_TEXT_TO_INPUT
 
 
 class TweetSchedule:
     options = _set_options()
-    driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
     settings = get_current_settings()
 
     def __init__(self, username, password, gmail=None):
         self.username = username
         self.password = password
         self.gmail = gmail
+        self.driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=self.options)
 
-    def go_to_main_page(self) -> None:
+    def go_to_main_page(self, status=False) -> Union[None, str]:
         self.driver.get('https://tweetdeck.twitter.com/')
+
         login = WebDriverWait(self.driver, 10).until(
             EC.element_to_be_clickable((By.XPATH, "//section[@data-auth-type='twitter']/div/a")))
         login.click()
-        username = WebDriverWait(self.driver, 10).until(
+
+        username = WebDriverWait(self.driver, 15).until(
             EC.presence_of_element_located((By.XPATH, "//input[@name='text'][@autocapitalize='sentences']")))
         username.send_keys(self.username)
         username.send_keys(Keys.ENTER)
 
-        password = WebDriverWait(self.driver, 10).until(
+        password = WebDriverWait(self.driver, 15).until(
             EC.presence_of_element_located((By.XPATH, "//input[@name='password'][@type='password']")))
         password.send_keys(self.password)
         password.send_keys(Keys.ENTER)
-        self.driver.implicitly_wait(10)
+        self.driver.implicitly_wait(15)
+        if status:
+            if check_exists(self.driver, By.XPATH, '//head/meta[@content="TweetDeck"]'):
+                return 'Active'
+            else:
+                return 'Phone Verification Requires'
 
-    def last_tweet_time(self, exit_driver=False) -> datetime:
+    def last_tweet_time(self, tweet_time=None, dump=False) -> datetime:
         """Will either return the datetime of last tweet of current time if tweet is scheduled or doesn't exist"""
+        file_name = os.path.join(os.getcwd(), 'files', 'settings.json')
+
+        with open(file_name, 'r') as f:
+            data = f.readlines()
+            if data:
+                time_str = data[0].strip('\n')
+                return datetime.strptime(time_str, '%I:%M %p %a %d %B %Y')
+            else:
+                open(file_name, 'w')
+
+        if dump and tweet_time:
+            with open(file_name, 'w') as f:
+                f.write(tweet_time.strftime('%I:%M %p %a %d %B %Y'))
+
+
         scheduled_section = self.driver.find_element(By.XPATH,
                                                      '//div/header/div/div/span[text()="Scheduled"]/../../../..')
         try:
-            scheduled_tweets = scheduled_section.find_elements(By.XPATH, './/article')[-1]
-            date_string = scheduled_tweets.find_element(By.XPATH, './/span').text
+            scheduled_tweets = scheduled_section.find_elements(By.XPATH, './/article')
+            print([i.text for i in scheduled_tweets])
+            date_string = scheduled_tweets[-1].find_element(By.XPATH, './/span').text
             date = datetime.strptime(date_string, '%I:%M %p · %a %d %B %Y')
-            if exit_driver:
-                self.driver.quit()
 
             return date
 
@@ -133,7 +156,7 @@ class TweetSchedule:
         self.driver.implicitly_wait(10)
         time.sleep(1.5)
 
-    def start_scheduling(self, schedule_till=settings.get('schedule_till')) -> namedtuple:
+    def start_scheduling(self, schedule_till=settings.get('schedule_till')):
         """Schedule tweet till a specific time and returns the last tweet posting time"""
 
         self.go_to_main_page()
@@ -141,12 +164,14 @@ class TweetSchedule:
 
         scheduling_start_time = self.last_tweet_time()
         scheduling_end_time = scheduling_start_time + timedelta(days=int(schedule_till))
-        interval = int(self.settings.get('tweet_interval')) + 180 + 150 + 360  # need to change
-
+        interval = int(self.settings.get('tweet_interval'))
+        print('scheduling_start_time', scheduling_start_time)
         while scheduling_start_time < scheduling_end_time:
 
             schedule_time = scheduling_start_time + timedelta(minutes=interval)
             schedule_time_values = _extract_time(schedule_time)
+
+            print(scheduling_start_time)
 
             self.schedule(schedule_time_values)
             self.write_tweet()
@@ -155,5 +180,4 @@ class TweetSchedule:
             scheduling_start_time += timedelta(minutes=interval)
 
         self.driver.quit()
-
-        return scheduling_end_time
+        self.last_tweet_time(dump=True, tweet_time=scheduling_start_time)
