@@ -1,5 +1,6 @@
-import datetime
 import os
+import concurrent.futures
+import time
 
 import PySimpleGUI as sg
 
@@ -22,8 +23,6 @@ from utils import (
 from backend.tweet import TweetSchedule
 from backend.status import update_status
 
-# TODO: HANDLE THREADING
-# TODO: MOVE TO BOTTOM AND FIND THE LAST TWEET
 
 # Set the theme
 sg.theme('DarkAmber')
@@ -40,7 +39,7 @@ def main_window():
     layout = [
         [sg.Text('Enter Tweets msg:', font=("Arial", 16, 'bold'), tooltip='Enter tweet of length 155'),
          sg.Push(), sg.Button('Close', key='Cancel', size=(10, 1))],
-        [sg.Multiline('', autoscroll=True, size=(110, 8), key='tweet_msg')],
+        [sg.Multiline('', autoscroll=True, size=(120, 8), key='tweet_msg')],
         [
             sg.Button('add tweet', key='-add_tweet-'),
             sg.Push(),
@@ -69,22 +68,35 @@ def main_window():
     return window
 
 
+def start_all_accounts_scheduling():
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        accounts = get_accs_from_db()
+        for a in accounts:
+            account = TweetSchedule(a.get('acc_username'), a.get('acc_pass'))
+            executor.submit(account.start_scheduling)
+            time.sleep(5)
+
 def main():
     window = main_window()
     while True:
-        event, value = window.read()
-
+        event, value = window.read(timeout=700)
+        print(event, value)
         if event == sg.WINDOW_CLOSED or event == 'Cancel':
             break
 
         if event == '-update_status-':
-            window.perform_long_operation(update_status, '-status-')
+            if sg.popup_ok_cancel('Update Accounts Status?') == 'OK':
+                window.perform_long_operation(update_status, '-status-')
+                window['-update_status-'].update('Updating..')
+                window['-update_status-'].update(disabled=True)
+                window['-update_status-'].update(button_color=('black', 'red'))
 
-        if event == 'status-':
+        if event == '-status-':
+            window['-update_status-'].update('Update Status')
+            window['-update_status-'].update(button_color=sg.theme_button_color())
+            window['-update_status-'].update(disabled=False)
             window.close()
             window = main_window()
-
-        print(event, value)
 
         # Setting configuration
         if event == "-edit_config-":
@@ -113,7 +125,7 @@ def main():
 
         # view tweets
         if event == 'view_raw':
-            tweet_file_name = os.path.join(os.getcwd(), 'files', 'tweets.txt')
+            tweet_file_name = os.path.join(os.getcwd(), 'db', 'tweets.txt')
             os.startfile(tweet_file_name)
 
         # add tweets from file
@@ -132,26 +144,17 @@ def main():
             window['-acc_table-'].update(updated_acc_table)
 
         if event == '-run-':
-            btn_text = window['-run-'].get_text()
-            if btn_text == 'Stop Scheduling':
-                msg = sg.popup_ok_cancel('Are you sure you want to cancel all scheduling?')
-                if msg == 'OK':
-                    window['-run-'].update('Start Scheduling')
-                    window['-run-'].update(button_color=sg.theme_button_color())
-                    bot_running = False
+            msg = sg.popup_ok_cancel('Are you sure you want to start scheduling?')
+            if msg == 'OK':
+                window.perform_long_operation(start_all_accounts_scheduling, end_key='-DONE_TWEETING-')
+                window['-run-'].update('Scheduling...')
+                window['-run-'].update(button_color=('black', 'red'))
 
-            if btn_text == 'Start Scheduling':
-                msg = sg.popup_ok_cancel('Are you sure you want to start scheduling?')
-                if msg == 'OK':
-                    accounts = get_accs_from_db()
-                    for account in accounts:
-                        username = account.get('acc_username')
-                        password = account.get('acc_pass')
-                        acc_scheduling = TweetSchedule(username, password)
-                        window.perform_long_operation(acc_scheduling.start_scheduling(), end_key=f'{username}_thread')
-                    window['-run-'].update('Stop Scheduling')
-                    window['-run-'].update(button_color=('black', 'red'))
-                    bot_running = True
+        if event == '-DONE_TWEETING-':
+            window.close()
+            window = main_window()
+            window['-run-'].update('Start Scheduling')
+            window['-run-'].update(button_color=('black', 'red'))
 
     window.close()
 

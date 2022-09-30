@@ -33,7 +33,7 @@ def dump_quotes_to_file():
     for q in quotes_lis:
         quote_text = q.find('a', class_='title').text
         quotes.append(quote_text.strip())
-    with open('files/quotes.txt', 'w', encoding='utf-8') as f:
+    with open('db/quotes.txt', 'w', encoding='utf-8') as f:
         for q in quotes:
             tweet_msg = f'{q}'
             if len(tweet_msg) < 90:
@@ -52,7 +52,7 @@ def use_api_for_quotes():
         else:
             break
 
-    with open('files/quotes.txt', 'a') as f:
+    with open('db/quotes.txt', 'a') as f:
         for q in ql:
             f.write(q)
             f.write('\n')

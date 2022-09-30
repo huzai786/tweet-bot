@@ -1,8 +1,6 @@
-import os
 import time
 from datetime import datetime, timedelta
 from collections import namedtuple
-from typing import Union
 
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
@@ -16,7 +14,15 @@ from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
 
 from backend.helpers import _side_panel_setup, check_exists
-from utils import generate_tweet, _set_options, _extract_time, JS_ADD_TEXT_TO_INPUT, get_current_settings
+from utils import (
+    generate_tweet,
+    _set_options,
+    _extract_time,
+    JS_ADD_TEXT_TO_INPUT,
+    get_current_settings,
+    get_accs_from_db,
+    edit_acc_in_db
+)
 
 
 class TweetSchedule:
@@ -29,7 +35,7 @@ class TweetSchedule:
         self.gmail = gmail
         self.driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=self.options)
 
-    def go_to_main_page(self, status=False) -> Union[None, str]:
+    def go_to_main_page(self, check_status=False) -> None:
         self.driver.get('https://tweetdeck.twitter.com/')
 
         login = WebDriverWait(self.driver, 15).until(
@@ -46,31 +52,33 @@ class TweetSchedule:
         password.send_keys(self.password)
         password.send_keys(Keys.ENTER)
         self.driver.implicitly_wait(15)
-        if status:
+
+        if check_status:
             if check_exists(self.driver, By.XPATH, '//head/meta[@content="TweetDeck"]'):
-                return 'Active'
+                status = 'Active'
             else:
-                return 'Phone Verification Requires'
+                status = 'Phone Verification Requires'
+            updated_status = {
+                "status": status
+            }
+            edit_acc_in_db(self.username, updated_status)
 
-    @staticmethod
-    def last_tweet_time() -> datetime:
+    def last_tweet_time(self) -> datetime:
         """Will either return the datetime of last tweet of current time if tweet is scheduled or doesn't exist"""
-        file_name = os.path.join(os.getcwd(), 'files', 'last_tweet.txt')
 
-        with open(file_name, 'r') as f:
-            data = f.readlines()
-            if data:
-                time_str = data[0].strip('\n')
-                return datetime.strptime(time_str, '%I:%M %p %a %d %B %Y')
-            else:
-                open(file_name, 'w')
-                return datetime.now()
+        accounts = get_accs_from_db()
+        current_acc = [i for i in accounts if self.username in i.values()][0]
+        acc_last_tweet = current_acc.get('last_tweet')
+        if acc_last_tweet:
+            return datetime.strptime(acc_last_tweet, '%I:%M %p %a %d %B %Y')
 
-    @staticmethod
-    def _dump_tweet(tweet_time):
-        file_name = os.path.join(os.getcwd(), 'files', 'settings.json')
-        with open(file_name, 'w') as f:
-            f.write(tweet_time.strftime('%I:%M %p %a %d %B %Y'))
+        return datetime.now()
+
+    def dump_tweet_time(self, tweet_time):
+        to_edit = {
+            "last_tweet": tweet_time.strftime('%I:%M %p %a %d %B %Y')
+        }
+        edit_acc_in_db(self.username, to_edit)
 
     def page_setup(self) -> None:
         _side_panel_setup(self.driver)
@@ -145,7 +153,7 @@ class TweetSchedule:
         time.sleep(1.5)
 
     def start_scheduling(self, schedule_till=settings.get('schedule_till')):
-        """Schedule tweet till a specific time and returns the last tweet posting time"""
+        """Schedule tweet till a specific time and Saves the last tweet time"""
 
         self.go_to_main_page()
         self.page_setup()
@@ -159,7 +167,7 @@ class TweetSchedule:
             schedule_time = scheduling_start_time + timedelta(minutes=interval)
             schedule_time_values = _extract_time(schedule_time)
 
-            print(scheduling_start_time)
+            print(scheduling_start_time.replace(second=0))
             try:
                 self.schedule(schedule_time_values)
                 self.write_tweet()
@@ -172,10 +180,12 @@ class TweetSchedule:
                 continue
 
             except ConnectionError:
-                print('No Internet')
+                print('Connection error')
                 break
 
             scheduling_start_time += timedelta(minutes=interval)
 
         self.driver.quit()
-        self._dump_tweet(scheduling_start_time)
+        self.dump_tweet_time(scheduling_start_time)
+
+

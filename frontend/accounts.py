@@ -13,7 +13,7 @@ def get_accounts_table():
     acc_details = get_accs_from_db()
     accounts_table = [[i.get('acc_username'),
                        i.get('acc_gmail'),
-                       i.get('acc_status'),
+                       i.get('status'),
                        i.get('last_tweet')
                        ] for i in acc_details]
 
@@ -27,8 +27,8 @@ def get_manage_window(accounts):
             sg.Text(f'{i.get("acc_gmail")}'),
             sg.Text(f'{i.get("acc_username")}'),
             sg.Push(),
-            sg.Button('Edit', key=f'{i.get("acc_username") + "_edit"}'),
-            sg.Button('Delete', key=f'{i.get("acc_username") + "_delete"}')
+            sg.Button('Edit', key=f'{i.get("key")}-edit'),
+            sg.Button('Delete', key=f'{i.get("key")}-delete')
         ]
         for i in accounts  # List Comprehension
     ]
@@ -52,16 +52,16 @@ def manage_account_window():
         if manage_acc_event == sg.WINDOW_CLOSED or manage_acc_event == 'Cancel':
             break
 
-        key = manage_acc_event.split('_')[0]
+        key = manage_acc_event.split('-')[0]
 
-        if manage_acc_event.endswith('_edit'):
+        if manage_acc_event.endswith('edit'):
             edit_account_window(key)
             manage_acc_window.close()
             accs = get_accs_from_db()
             manage_acc_window = get_manage_window(accs)
 
-        if manage_acc_event.endswith('_delete'):
-            if sg.popup_yes_no(f'Are you sure you want to delete {key} account!', keep_on_top=True, modal=True) == 'Yes':
+        if manage_acc_event.endswith('delete'):
+            if sg.popup_yes_no(f'Are you sure you want to delete account!', keep_on_top=True, modal=True) == 'Yes':
                 del_acc_in_db(key)
                 manage_acc_window.close()
                 accs = get_accs_from_db()
@@ -98,7 +98,12 @@ def edit_account_window(key):
 
         if edit_acc_event == '-save-':
             if edit_acc_value.get('-username-') and edit_acc_value.get('-gmail-') and edit_acc_value.get('-pass-'):
-                edit_acc_in_db(key, edit_acc_value)
+                things_to_edit = {
+                    "acc_username": edit_acc_value.get('-username-'),
+                    "acc_gmail": edit_acc_value.get('-gmail-'),
+                    "acc_pass": edit_acc_value.get('-pass-'),
+                }
+                edit_acc_in_db(key, things_to_edit)
 
             else:
                 sg.popup_error('Value Missing!', modal=True)

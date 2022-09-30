@@ -8,6 +8,8 @@ from collections import namedtuple
 from selenium.webdriver import ChromeOptions
 
 
+# ------------------ functions for generating tweet msg ------------------ #
+
 def get_cur_date() -> str:
     now = datetime.now()
     curr_time = now.strftime('%m/%d/%Y, %H:%M')
@@ -26,7 +28,7 @@ def get_random_emoji(length) -> str:
 
 
 def get_random_tweet() -> str:
-    file_path = os.path.join(os.getcwd(), 'files', 'tweets.txt')
+    file_path = os.path.join(os.getcwd(), 'db', 'tweets.txt')
     with open(file_path, 'r', encoding='utf-8') as f:
         all_tweets = f.read()
         tweet_lists = all_tweets.split('====')
@@ -36,7 +38,7 @@ def get_random_tweet() -> str:
 
 
 def get_random_quote() -> str:
-    file_path = os.path.join(os.getcwd(), 'files', 'quotes.txt')
+    file_path = os.path.join(os.getcwd(), 'db', 'quotes.txt')
     with open(file_path, 'r', encoding='utf-8') as f:
         l = f.readlines()
     return random.choice(l)
@@ -53,11 +55,13 @@ def generate_tweet(settings: dict) -> str:
 
     return tweet_msg
 
+# --------------------- end ------------------------ #
 
+# -------------------- tweet scheduling utils ----------------------- #
 def _set_options() -> ChromeOptions:
     ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36"
     options = ChromeOptions()
-    # options.add_argument('--headless')
+    options.add_argument('--headless')
     options.add_argument(f'--user-agent={ua}')
     return options
 
@@ -80,28 +84,24 @@ JS_ADD_TEXT_TO_INPUT = """
   elm.dispatchEvent(new Event('change'));
   """
 
-def edit_acc_in_db(key, accounts_details: dict):
-    file_name = os.path.join(os.getcwd(), 'files', 'accounts.json')
+# ------------- end ------------- #
+
+# -------------------- account crud -------------------- #
+
+def edit_acc_in_db(key, things_to_edit: dict):
+    file_name = os.path.join(os.getcwd(), 'db', 'accounts.json')
     with open(file_name, 'r', encoding='utf-8') as rf:
         data = json.load(rf)
     accounts_list = data.get('accounts')
     acc_to_edit = [i for i in accounts_list if key in i.values()][0]
-    last_tweet = acc_to_edit.get('last_tweet')
-    accounts_list.remove(acc_to_edit)
-    new_acc_dict = {
-        "acc_gmail": accounts_details.get('-gmail-'),
-        "acc_pass": accounts_details.get('-pass-'),
-        "acc_username": accounts_details.get('-username-'),
-        "last_tweet": last_tweet
-    }
-    accounts_list.append(new_acc_dict)
-
+    for i, v in things_to_edit.items():
+        acc_to_edit[i] = v
     with open(file_name, 'w', encoding='utf-8') as wf:
         json.dump(data, wf)
 
 
 def get_accs_from_db() -> list:
-    file_name = os.path.join(os.getcwd(), 'files', 'accounts.json')
+    file_name = os.path.join(os.getcwd(), 'db', 'accounts.json')
     if os.path.exists(file_name):
         with open(file_name, 'r', encoding='utf-8') as f:
             data = f.read()
@@ -112,13 +112,16 @@ def get_accs_from_db() -> list:
 
 
 def add_acc_to_db(accounts_details: dict):
-    file_name = os.path.join(os.getcwd(), 'files', 'accounts.json')
+    file_name = os.path.join(os.getcwd(), 'db', 'accounts.json')
     new_acc_dict = {
         "acc_gmail": accounts_details.get('-gmail-'),
         "acc_pass": accounts_details.get('-pass-'),
         "acc_username": accounts_details.get('-username-'),
-        "last_tweet": None
+        "last_tweet": None,
+        "status": None,
+        "key": ''.join([str(random.randint(0, 10)) for _ in range(4)])
     }
+
     with open(file_name, 'r', encoding='utf-8') as rf:
         data = json.load(rf)
     accounts_list = data.get('accounts')
@@ -127,19 +130,21 @@ def add_acc_to_db(accounts_details: dict):
         json.dump(data, wf)
 
 
-def del_acc_in_db(username_key):
-    file_name = os.path.join(os.getcwd(), 'files', 'accounts.json')
+def del_acc_in_db(key):
+    file_name = os.path.join(os.getcwd(), 'db', 'accounts.json')
     with open(file_name, 'r', encoding='utf-8') as rf:
         data = json.load(rf)
     accounts_list = data.get('accounts')
-    acc_to_del = [i for i in accounts_list if username_key in i.values()][0]
+    acc_to_del = [i for i in accounts_list if key in i.values()][0]
     accounts_list.remove(acc_to_del)
     with open(file_name, 'w', encoding='utf-8') as wf:
         json.dump(data, wf)
 
 
+# ----------------- Front end utils ---------------- #
+
 def get_current_settings() -> dict:
-    file_name = os.path.join(os.getcwd(), 'files', 'settings.json')
+    file_name = os.path.join(os.getcwd(), 'db', 'settings.json')
     if os.path.exists(file_name):
         with open(file_name, 'r', encoding='utf-8') as f:
             data = f.read()
@@ -150,7 +155,7 @@ def get_current_settings() -> dict:
 
 
 def change_current_settings(values: dict):
-    file_name = os.path.join(os.getcwd(), 'files', 'settings.json')
+    file_name = os.path.join(os.getcwd(), 'db', 'settings.json')
     with open(file_name, 'r', encoding='utf-8') as rf:
         data = json.load(rf)
     setting = data.get('settings')
@@ -165,7 +170,7 @@ def change_current_settings(values: dict):
         json.dump(data, wf)
 
 def add_to_tweet_file(tweet):
-    file_path = os.path.join(os.getcwd(), 'files', 'tweets.txt')
+    file_path = os.path.join(os.getcwd(), 'db', 'tweets.txt')
     mode = 'a'
     if not os.path.exists(file_path):
         mode = 'w'
@@ -174,7 +179,9 @@ def add_to_tweet_file(tweet):
         f.write('\n====\n')
 
 
-def check_file(file_path):  # returns a file object if the file has valid delimiting else return None
+def check_file(file_path):
+    """returns a file object if the file has valid delimiting else return None"""
+
     with open(file_path, 'r', encoding='utf-8') as f:
         data = f.read()
     tweet_list = []
@@ -188,7 +195,7 @@ def check_file(file_path):  # returns a file object if the file has valid delimi
 
 
 def dump_tweets(tweets_msgs: list):
-    file_path = os.path.join(os.getcwd(), 'files', 'tweets.txt')
+    file_path = os.path.join(os.getcwd(), 'db', 'tweets.txt')
     with open(file_path, 'a', encoding='utf-8') as f:
         for t in tweets_msgs:
             if t:
