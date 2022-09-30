@@ -1,9 +1,8 @@
 import concurrent.futures
-import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 
-from frontend.utils import get_accs_from_db, edit_acc_in_db
+from utils import get_accs_from_db, edit_acc_in_db
 from backend.tweet import TweetSchedule
 
 def _get_time(time_str: str) -> datetime:

@@ -1,6 +1,6 @@
 import PySimpleGUI as sg
 
-from frontend.utils import (
+from utils import (
     get_accs_from_db,
     del_acc_in_db,
     edit_acc_in_db,

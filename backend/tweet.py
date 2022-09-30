@@ -7,7 +7,7 @@ from typing import Union
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common import NoSuchElementException
+from selenium.common import ElementNotInteractableException
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -15,9 +15,8 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
 
-from frontend.utils import get_current_settings
 from backend.helpers import _side_panel_setup, check_exists
-from backend.utils import generate_tweet, _set_options, _extract_time, JS_ADD_TEXT_TO_INPUT
+from utils import generate_tweet, _set_options, _extract_time, JS_ADD_TEXT_TO_INPUT, get_current_settings
 
 
 class TweetSchedule:
@@ -33,16 +32,16 @@ class TweetSchedule:
     def go_to_main_page(self, status=False) -> Union[None, str]:
         self.driver.get('https://tweetdeck.twitter.com/')
 
-        login = WebDriverWait(self.driver, 10).until(
+        login = WebDriverWait(self.driver, 15).until(
             EC.element_to_be_clickable((By.XPATH, "//section[@data-auth-type='twitter']/div/a")))
         login.click()
 
-        username = WebDriverWait(self.driver, 15).until(
+        username = WebDriverWait(self.driver, 25).until(
             EC.presence_of_element_located((By.XPATH, "//input[@name='text'][@autocapitalize='sentences']")))
         username.send_keys(self.username)
         username.send_keys(Keys.ENTER)
 
-        password = WebDriverWait(self.driver, 15).until(
+        password = WebDriverWait(self.driver, 25).until(
             EC.presence_of_element_located((By.XPATH, "//input[@name='password'][@type='password']")))
         password.send_keys(self.password)
         password.send_keys(Keys.ENTER)
@@ -53,9 +52,10 @@ class TweetSchedule:
             else:
                 return 'Phone Verification Requires'
 
-    def last_tweet_time(self, tweet_time=None, dump=False) -> datetime:
+    @staticmethod
+    def last_tweet_time() -> datetime:
         """Will either return the datetime of last tweet of current time if tweet is scheduled or doesn't exist"""
-        file_name = os.path.join(os.getcwd(), 'files', 'settings.json')
+        file_name = os.path.join(os.getcwd(), 'files', 'last_tweet.txt')
 
         with open(file_name, 'r') as f:
             data = f.readlines()
@@ -64,27 +64,13 @@ class TweetSchedule:
                 return datetime.strptime(time_str, '%I:%M %p %a %d %B %Y')
             else:
                 open(file_name, 'w')
+                return datetime.now()
 
-        if dump and tweet_time:
-            with open(file_name, 'w') as f:
-                f.write(tweet_time.strftime('%I:%M %p %a %d %B %Y'))
-
-
-        scheduled_section = self.driver.find_element(By.XPATH,
-                                                     '//div/header/div/div/span[text()="Scheduled"]/../../../..')
-        try:
-            scheduled_tweets = scheduled_section.find_elements(By.XPATH, './/article')
-            print([i.text for i in scheduled_tweets])
-            date_string = scheduled_tweets[-1].find_element(By.XPATH, './/span').text
-            date = datetime.strptime(date_string, '%I:%M %p · %a %d %B %Y')
-
-            return date
-
-        except NoSuchElementException:
-            return datetime.now()
-
-        except IndexError:
-            return datetime.now()
+    @staticmethod
+    def _dump_tweet(tweet_time):
+        file_name = os.path.join(os.getcwd(), 'files', 'settings.json')
+        with open(file_name, 'w') as f:
+            f.write(tweet_time.strftime('%I:%M %p %a %d %B %Y'))
 
     def page_setup(self) -> None:
         _side_panel_setup(self.driver)
@@ -95,7 +81,6 @@ class TweetSchedule:
     def _pick_date(self, date, month, year):
 
         current_month, current_year = self.driver.find_element(By.XPATH, '//*[@id="calhead"]').text.split()
-
         while current_month != month or current_year != year:
 
             next_month_button = self.driver.find_element(By.XPATH, '//*[@id="next-month"]')
@@ -128,7 +113,10 @@ class TweetSchedule:
             ampm_status.click()
 
     def schedule(self, time_to_schedule: namedtuple) -> None:
-        self.driver.find_element(By.XPATH, '//div[@class="js-scheduler"]/button').click()
+        schedule_button = WebDriverWait(self.driver, 15).until(
+            EC.element_to_be_clickable(
+                (By.XPATH, '//div[@class="js-scheduler"]/button')))
+        schedule_button.click()
         calendar = self.driver.find_element(
             By.XPATH, '//span[@class="js-schedule-datepicker-holder"]/div')
 
@@ -165,19 +153,29 @@ class TweetSchedule:
         scheduling_start_time = self.last_tweet_time()
         scheduling_end_time = scheduling_start_time + timedelta(days=int(schedule_till))
         interval = int(self.settings.get('tweet_interval'))
-        print('scheduling_start_time', scheduling_start_time)
+
         while scheduling_start_time < scheduling_end_time:
 
             schedule_time = scheduling_start_time + timedelta(minutes=interval)
             schedule_time_values = _extract_time(schedule_time)
 
             print(scheduling_start_time)
+            try:
+                self.schedule(schedule_time_values)
+                self.write_tweet()
+                self.post_tweet()
 
-            self.schedule(schedule_time_values)
-            self.write_tweet()
-            self.post_tweet()
+            except ElementNotInteractableException:
+                self.driver.refresh()
+                self.driver.implicitly_wait(10)
+                time.sleep(1)
+                continue
+
+            except ConnectionError:
+                print('No Internet')
+                break
 
             scheduling_start_time += timedelta(minutes=interval)
 
         self.driver.quit()
-        self.last_tweet_time(dump=True, tweet_time=scheduling_start_time)
+        self._dump_tweet(scheduling_start_time)

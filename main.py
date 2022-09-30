@@ -12,7 +12,7 @@ from frontend.settings import (
     get_setting_table,
     setting_window,
 )
-from frontend.utils import (
+from utils import (
     get_current_settings,
     add_to_tweet_file,
     check_file,
@@ -85,6 +85,7 @@ def main():
             window = main_window()
 
         print(event, value)
+
         # Setting configuration
         if event == "-edit_config-":
             setting_window(get_current_settings())

@@ -1,7 +1,7 @@
 from typing import Any
 import PySimpleGUI as sg
 
-from frontend.utils import get_current_settings, change_current_settings
+from utils import get_current_settings, change_current_settings
 
 
 def get_setting_table():
@@ -19,7 +19,7 @@ def get_setting_table():
 
 
 def setting_window(settings_dict):
-    tweet_interval = [5, 10, 15, 20, 25, 30]
+    tweet_interval = [1, 5, 10, 15, 20, 25, 30, 60]
     number_of_emoji = [1, 2, 3, 4, 5, 6]
     setting_layout = [
         [sg.Text('Settings', font=("Arial", 19))],

@@ -1,6 +1,8 @@
 from backend.tweet import TweetSchedule
-username, password = '@SUyghurmuslims', '!qwe03192057092zxc#'
+username, password = '@testing56928343', 'fr21234fasf'
 tweet = TweetSchedule(username, password)
 
-time = tweet.start_scheduling()
-print('time', time)
+tweet.start_scheduling()
+
+
+
