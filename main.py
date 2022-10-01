@@ -79,7 +79,7 @@ def start_all_accounts_scheduling():
 def main():
     window = main_window()
     while True:
-        event, value = window.read(timeout=700)
+        event, value = window.read(timeout=500)
         print(event, value)
         if event == sg.WINDOW_CLOSED or event == 'Cancel':
             break
@@ -154,7 +154,8 @@ def main():
             window.close()
             window = main_window()
             window['-run-'].update('Start Scheduling')
-            window['-run-'].update(button_color=('black', 'red'))
+            window['-run-'].update(button_color=sg.theme_button_color())
+            sg.popup_auto_close('Scheduling Completed!')
 
     window.close()
 

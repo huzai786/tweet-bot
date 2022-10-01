@@ -35,7 +35,7 @@ class TweetSchedule:
         self.gmail = gmail
         self.driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=self.options)
 
-    def go_to_main_page(self, check_status=False) -> None:
+    def go_to_main_page(self, check_status=False) -> bool:
         self.driver.get('https://tweetdeck.twitter.com/')
 
         login = WebDriverWait(self.driver, 15).until(
@@ -54,14 +54,20 @@ class TweetSchedule:
         self.driver.implicitly_wait(15)
 
         if check_status:
-            if check_exists(self.driver, By.XPATH, '//head/meta[@content="TweetDeck"]'):
-                status = 'Active'
+            if check_exists(self.driver, By.XPATH, '//a[contains(text(), "Log in")]'):
+                status = 'Verification Requires'
+
             else:
-                status = 'Phone Verification Requires'
+                status = 'Active'
             updated_status = {
                 "status": status
             }
             edit_acc_in_db(self.username, updated_status)
+
+            if status == 'Verification Required!':
+                return False
+            else:
+                return True
 
     def last_tweet_time(self) -> datetime:
         """Will either return the datetime of last tweet of current time if tweet is scheduled or doesn't exist"""
@@ -155,37 +161,39 @@ class TweetSchedule:
     def start_scheduling(self, schedule_till=settings.get('schedule_till')):
         """Schedule tweet till a specific time and Saves the last tweet time"""
 
-        self.go_to_main_page()
-        self.page_setup()
+        if self.go_to_main_page(check_status=True):
+            self.page_setup()
 
-        scheduling_start_time = self.last_tweet_time()
-        scheduling_end_time = scheduling_start_time + timedelta(days=int(schedule_till))
-        interval = int(self.settings.get('tweet_interval'))
+            scheduling_start_time = self.last_tweet_time()
+            scheduling_end_time = scheduling_start_time + timedelta(days=int(schedule_till))
+            interval = int(self.settings.get('tweet_interval'))
 
-        while scheduling_start_time < scheduling_end_time:
+            while scheduling_start_time < scheduling_end_time:
 
-            schedule_time = scheduling_start_time + timedelta(minutes=interval)
-            schedule_time_values = _extract_time(schedule_time)
+                schedule_time = scheduling_start_time + timedelta(minutes=interval)
+                schedule_time_values = _extract_time(schedule_time)
 
-            print(scheduling_start_time.replace(second=0))
-            try:
-                self.schedule(schedule_time_values)
-                self.write_tweet()
-                self.post_tweet()
+                print(scheduling_start_time.replace(second=0))
+                try:
+                    self.schedule(schedule_time_values)
+                    self.write_tweet()
+                    self.post_tweet()
 
-            except ElementNotInteractableException:
-                self.driver.refresh()
-                self.driver.implicitly_wait(10)
-                time.sleep(1)
-                continue
+                except ElementNotInteractableException:
+                    self.driver.refresh()
+                    self.driver.implicitly_wait(10)
+                    time.sleep(1)
+                    continue
 
-            except ConnectionError:
-                print('Connection error')
-                break
+                except ConnectionError:
+                    print('Connection error')
+                    break
 
-            scheduling_start_time += timedelta(minutes=interval)
+                scheduling_start_time += timedelta(minutes=interval)
 
-        self.driver.quit()
-        self.dump_tweet_time(scheduling_start_time)
+            self.driver.quit()
+            self.dump_tweet_time(scheduling_start_time)
+
+
 
 
