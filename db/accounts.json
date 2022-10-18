@@ -1,1 +1,6 @@
-{"accounts": [{"acc_gmail": "test@gmail.com", "acc_pass": "fr21234fasf", "acc_username": "@testing56928343", "last_tweet": "07:43 AM Wed 05 October 2022", "status": "Active", "key": "4609"}, {"acc_gmail": "hangiesang@gmail.com", "acc_pass": "fr21234fasf", "acc_username": "@hangiesang", "last_tweet": "08:50 AM Sun 02 October 2022", "status": "Verification Requires", "key": "10521"}]}
+{"accounts": 
+ [
+   {"acc_gmail": "test@gmail.com", "acc_pass": "**********", "acc_username": "@testing56928343", "last_tweet": "07:43 AM Wed 05 October 2022", "status": "Active", "key": "4609"}, 
+   {"acc_gmail": "hangiesang@gmail.com", "acc_pass": "*********", "acc_username": "@hangiesang", "last_tweet": "08:50 AM Sun 02 October 2022", "status": "Verification Requires", "key": "10521"}
+ ]
+}
